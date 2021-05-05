@@ -53,6 +53,10 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+    # Create an GitHub environment for our Spring Boot Fargate Deployment
+    environment:
+      name: microservice-api-spring-boot-deployment
+      url: ${{ steps.pulumi-up.outputs.api_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@master
@@ -77,23 +81,11 @@ jobs:
       - name: Install Pulumi CLI
         uses: pulumi/action-install-pulumi-cli@v1.0.2
 
-      - name: Run pulumi preview & pulumi up
+      - name: Deploy Spring Boot App Container image to AWS Fargate with Pulumi
+        id: pulumi-up
         run: |
           pulumi stack select dev
           pulumi preview
           pulumi up -y
-        working-directory: ./deployment
-
-      - name: Configure AWS credentials for GitHub pre-installed AWS CLI
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-central-1
-
-      - name: Deploy Spring Boot app to AWS Fargate
-        run: |
-          echo "deploy our app here"
-          echo "Access the Nuxt.js app at the following URL:"
-          pulumi stack output bucketUrl
+          echo "::set-output name=api_url::http://$(pulumi stack output apiUrl):8098/hello/api"
         working-directory: ./deployment
