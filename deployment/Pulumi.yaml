@@ -1,0 +1,3 @@
+name: microservice-api-spring-boot
+runtime: nodejs
+description: Deploying a Spring Boot Backend to AWS Fargate

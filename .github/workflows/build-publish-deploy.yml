@@ -1,15 +1,3 @@
-# microservice-api-spring-boot
-[![Build Status](https://github.com/jonashackt/microservice-api-spring-boot/workflows/build-publish-deploy/badge.svg)](https://github.com/jonashackt/microservice-api-spring-boot/actions)
-
-Example project showing how to interact with a Nuxt.js / Vue.js based frontend building a Spring Boot microservice 
-
-The source is simply copied from my project https://github.com/jonashackt/spring-boot-vuejs/tree/master/backend
-
-## GitHub Actions: Build, create Container Image with Paketo.io & Publish to GitHub Container Registry
-
-Our [build-publish-deploy.yml](.github/workflows/build-publish-deploy.yml) already builds our Java/Spring Boot app using JDK 16. It also uses Paketo.io / Cloud Native Buildpacks to create a Container image (incl. a Paketo cache image to speed up builds, see https://stackoverflow.com/a/66598693/4964553) and publish it to GitHub Container Registry:
-
-```yaml
 name: build-publish-deploy
 
 on: [push]
@@ -57,31 +45,7 @@ jobs:
               --env "BP_JVM_VERSION=16" \
               --cache-image ghcr.io/jonashackt/microservice-api-spring-boot-paketo-cache-image:latest \
               --publish
-```
 
-## GitHub Actions: Deploy to AWS Fargate using Pulumi
-
-As already described here: https://github.com/jonashackt/azure-training-pulumi#pulumi-with-github-actions there are some steps to take in order to use Pulumi with GitHub Actions.
-
-https://www.pulumi.com/docs/guides/continuous-delivery/github-actions/
-
-It's really cool to see that there's a Pulumi GitHub action project https://github.com/pulumi/actions already ready for us.
-
-
-#### Create needed GitHub Repository Secrets
-
-First we need to create 5 new GitHub Repository Secrets (encrypted variables) in your repo under `Settings/Secrets`.
-
-We should start to create a new Pulumi Access Token `PULUMI_ACCESS_TOKEN` at https://app.pulumi.com/jonashackt/settings/tokens
-
-Now we need to create the AWS specific variables: `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` (they need to be exactly named like this, see https://www.pulumi.com/docs/intro/cloud-providers/aws/setup/#environment-variables). Create them all as GitHub Repository Secrets.
-
-
-#### Create GitHub Actions workflow
-
-Let's add a job `deploy-to-aws-fargate` to our GitHub Actions workflow [build-publish-deploy.yml](.github/workflows/build-publish-deploy.yml):
-
-```yaml
   deploy-to-aws-fargate:
     needs: publish-to-gh-container-registry
     runs-on: ubuntu-latest
@@ -133,6 +97,3 @@ Let's add a job `deploy-to-aws-fargate` to our GitHub Actions workflow [build-pu
           echo "Access the Nuxt.js app at the following URL:"
           pulumi stack output bucketUrl
         working-directory: ./deployment
-```
-
-We use the possibility [to define the environment variables on the workflow's top level](https://docs.github.com/en/actions/reference/environment-variables) to reduce the 3 definition to one. 
