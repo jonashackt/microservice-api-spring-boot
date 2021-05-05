@@ -74,13 +74,13 @@ Then inside our Pulumi program [index.ts](deployment/index.ts) we can use everyt
 import * as awsx from "@pulumi/awsx";
 
 // Create a load balancer to listen for requests and route them to the container.
-let loadbalancer = new awsx.lb.ApplicationListener("nginx", { port: 8098, protocol: "HTTP" });
+let loadbalancer = new awsx.lb.ApplicationListener("alb", { port: 8098, protocol: "HTTP" });
 
 // Define Container image published to the GitHub Container Registry
 let service = new awsx.ecs.FargateService("microservice-api-spring-boot", {
     taskDefinitionArgs: {
         containers: {
-            nginx: {
+          microservice_api_spring_boot: {
                 image: "ghcr.io/jonashackt/microservice-api-spring-boot:latest",
                 memory: 768,
                 portMappings: [ loadbalancer ],

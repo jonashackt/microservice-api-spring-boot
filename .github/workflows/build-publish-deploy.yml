@@ -87,5 +87,5 @@ jobs:
           pulumi stack select dev
           pulumi preview
           pulumi up -y
-          echo "::set-output name=api_url::http://$(pulumi stack output apiUrl):8098/hello/api"
+          echo "::set-output name=api_url::http://$(pulumi stack output apiUrl):8098/api/hello"
         working-directory: ./deployment
