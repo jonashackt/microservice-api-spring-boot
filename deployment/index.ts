@@ -1,18 +1,39 @@
-import * as pulumi from "@pulumi/pulumi";
-import * as aws from "@pulumi/aws";
+import * as awsx from "@pulumi/awsx";
 
-// Create an AWS resource (S3 Bucket)
-// const nuxtBucket = new aws.s3.Bucket("microservice-ui-nuxt-js-hosting-bucket", {
-//   acl: "public-read",
-//   website: {
-//     indexDocument: "index.html",
-//   }
-// });
+// Spring Boot Apps port
+const port = 8098;
 
-// S3 Objects from Nuxt.js static site generation will be added through aws CLI instead of Pulumi like this
-// (see https://www.pulumi.com/docs/tutorials/aws/aws-ts-static-website/#deployment-speed):
-// aws s3 sync ../dist/ s3://$(pulumi stack output bucketName) --acl public-read
+// Create a ApplicationLoadBalancer to listen for requests and route them to the container.
+const alb = new awsx.lb.ApplicationLoadBalancer("fargateAlb");
 
-// Export the name of the bucket
-// export const bucketName = nuxtBucket.id;
-// export const bucketUrl = nuxtBucket.websiteEndpoint;
+// Create TargetGroup & Listener manually (see https://www.pulumi.com/docs/reference/pkg/nodejs/pulumi/awsx/lb/)
+// so that we can configure the TargetGroup HealthCheck as described in (https://www.pulumi.com/docs/guides/crosswalk/aws/elb/#manually-configuring-target-groups)
+// otherwise our Spring Boot Containers will be restarted every time, since the TargetGroup HealthChecks Status always
+// goes to unhealthy
+const albTargetGroup = alb.createTargetGroup("fargateAlbTargetGroup", {
+    port: port,
+    protocol: "HTTP",
+    healthCheck: {
+        // Use the default spring-boot-actuator health endpoint
+        path: "/actuator/health"
+    }
+});
+
+const albListener = albTargetGroup.createListener("fargateAlbListener", { port: port, protocol: "HTTP" });
+
+// Define Container image published to the GitHub Container Registry
+const service = new awsx.ecs.FargateService("microservice-api-spring-boot", {
+    taskDefinitionArgs: {
+        containers: {
+            microservice_api_spring_boot: {
+                image: "ghcr.io/jonashackt/microservice-api-spring-boot:latest",
+                memory: 768,
+                portMappings: [ albListener ]
+            },
+        },
+    },
+    desiredCount: 2,
+});
+
+// Export the URL so we can easily access it.
+export const apiUrl = albListener.endpoint.hostname;

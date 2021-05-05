@@ -59,6 +59,103 @@ jobs:
               --publish
 ```
 
+## Deploy Spring Boot App to AWS Fargate with Pulumi
+
+Using Pulumi we can create our AWS resources using vendor neutral Infrastructure-as-Code. So let's create a Pulumi project using the Pulumi CLI:
+
+```shell
+mkdir deployment && cd deployment
+pulumi new aws-typescript
+```
+
+Then inside our Pulumi program [index.ts](deployment/index.ts) we can use everything discovered in https://github.com/jonashackt/pulumi-typescript-aws-fargate to deploy our Spring Boot App, which is already packaged by Paketo.io and published at the GitHub Container Registry:
+
+```yaml
+import * as awsx from "@pulumi/awsx";
+
+// Create a load balancer to listen for requests and route them to the container.
+let loadbalancer = new awsx.lb.ApplicationListener("nginx", { port: 8098, protocol: "HTTP" });
+
+// Define Container image published to the GitHub Container Registry
+let service = new awsx.ecs.FargateService("microservice-api-spring-boot", {
+    taskDefinitionArgs: {
+        containers: {
+            nginx: {
+                image: "ghcr.io/jonashackt/microservice-api-spring-boot:latest",
+                memory: 768,
+                portMappings: [ loadbalancer ],
+            },
+        },
+    },
+    desiredCount: 2,
+});
+
+// Export the URL so we can easily access it.
+export const apiUrl = loadbalancer.endpoint.hostname;
+```
+
+Now running a `pulumi up --stack dev` should launch our ECS Cluster, Security Groups, the Loadbalancer and our Fargate Service (incl. TaskDefinition etc.). This is a whole bunch of services, I prepared an Asciinema for this also:
+
+[![asciicast](https://asciinema.org/a/411968.svg)](https://asciinema.org/a/411968)
+
+
+## Solving the Restarting-Loop-Problem in Fargate with TargetGroup HealthChecks
+
+The setup is great, but AWS keeps restarting my Tasks aka Containers all the time - so the Spring Boot Apps don't really get available, they are terminated all the time!
+
+The problem is, we didn't define any healthchecks inside our Fargate Taskdefinitions. And the hello world examples like https://www.pulumi.com/docs/tutorials/aws/ecs-fargate/ also don't show us how to configure the correct health check urls.
+
+Even the documentation at https://www.pulumi.com/docs/reference/pkg/nodejs/pulumi/awsx/lb/ doesn't have an out-of-the-box example, although there are detailed docs about [Manually Configuring Target Groups](https://www.pulumi.com/docs/guides/crosswalk/aws/elb/#manually-configuring-target-groups).
+
+We need to extend our Pulumi program slightly here because of the need to define the health check URL for our Fargate TaskDefinitions:
+
+```typescript
+// Spring Boot Apps port
+const port = 8098;
+
+// Create a ApplicationLoadBalancer to listen for requests and route them to the container.
+const alb = new awsx.lb.ApplicationLoadBalancer("fargateAlb");
+
+// Create TargetGroup & Listener manually (see https://www.pulumi.com/docs/reference/pkg/nodejs/pulumi/awsx/lb/)
+// so that we can configure the TargetGroup HealthCheck as described in (https://www.pulumi.com/docs/guides/crosswalk/aws/elb/#manually-configuring-target-groups)
+// otherwise our Spring Boot Containers will be restarted every time, since the TargetGroup HealthChecks Status always
+// goes to unhealthy
+const albTargetGroup = alb.createTargetGroup("fargateAlbTargetGroup", {
+    port: port,
+    protocol: "HTTP",
+    healthCheck: {
+        // Use the default spring-boot-actuator health endpoint
+        path: "/actuator/health"
+    }
+});
+
+const albListener = albTargetGroup.createListener("fargateAlbListener", { port: port, protocol: "HTTP" });
+
+// Define Container image published to the GitHub Container Registry
+const service = new awsx.ecs.FargateService("microservice-api-spring-boot", {
+    taskDefinitionArgs: {
+        containers: {
+            microservice_api_spring_boot: {
+                image: "ghcr.io/jonashackt/microservice-api-spring-boot:latest",
+                memory: 768,
+                portMappings: [ albListener ]
+            },
+        },
+    },
+    desiredCount: 2,
+});
+```
+
+First we need to explicitely create an ApplicationLoadBalancer using `const alb = new awsx.lb.ApplicationLoadBalancer("fargateAlb");`. From the `alb` variable we're able to call `alb.createTargetGroup()`, where we can configure a health check path (see this for more info https://www.pulumi.com/docs/guides/crosswalk/aws/elb/#manually-configuring-target-groups)!
+
+After having created the `ApplicationTargetGroup` we need to create an `ApplicationListener`, which we previously only needed to create in our hello world example. The `FargateService` stays the same - except of explicitely using the `ApplicationListener` inside the `portMappings` defintion. 
+
+Now our Fargate Tasks stop beeing stopped and created over and over again. And inside our TargetGroup we should see our healthy Fargate Containers:
+
+![alb-targetGroup-health-checks-green-with-fargate-containers](screenshots/alb-targetGroup-health-checks-green-with-fargate-containers.png)
+
+
+
 ## GitHub Actions: Deploy to AWS Fargate using Pulumi
 
 As already described here: https://github.com/jonashackt/azure-training-pulumi#pulumi-with-github-actions there are some steps to take in order to use Pulumi with GitHub Actions.
@@ -89,6 +186,10 @@ Let's add a job `deploy-to-aws-fargate` to our GitHub Actions workflow [build-pu
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+    # Create an GitHub environment for our Spring Boot Fargate Deployment
+    environment:
+      name: microservice-api-spring-boot-deployment
+      url: ${{ steps.pulumi-up.outputs.api_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@master
@@ -113,26 +214,15 @@ Let's add a job `deploy-to-aws-fargate` to our GitHub Actions workflow [build-pu
       - name: Install Pulumi CLI
         uses: pulumi/action-install-pulumi-cli@v1.0.2
 
-      - name: Run pulumi preview & pulumi up
+      - name: Deploy Spring Boot App Container image to AWS Fargate with Pulumi
+        id: pulumi-up
         run: |
           pulumi stack select dev
           pulumi preview
           pulumi up -y
+          echo "::set-output name=api_url::http://$(pulumi stack output apiUrl)"
         working-directory: ./deployment
 
-      - name: Configure AWS credentials for GitHub pre-installed AWS CLI
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-central-1
-
-      - name: Deploy Spring Boot app to AWS Fargate
-        run: |
-          echo "deploy our app here"
-          echo "Access the Nuxt.js app at the following URL:"
-          pulumi stack output bucketUrl
-        working-directory: ./deployment
 ```
 
 We use the possibility [to define the environment variables on the workflow's top level](https://docs.github.com/en/actions/reference/environment-variables) to reduce the 3 definition to one. 
