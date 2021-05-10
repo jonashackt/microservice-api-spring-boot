@@ -1,7 +1,7 @@
 # microservice-api-spring-boot
 [![Build Status](https://github.com/jonashackt/microservice-api-spring-boot/workflows/build-publish-deploy/badge.svg)](https://github.com/jonashackt/microservice-api-spring-boot/actions)
 
-Example project showing how to interact with a Nuxt.js / Vue.js based frontend building a Spring Boot microservice 
+Example project showing how to interact with a Nuxt.js / Vue.js based frontend building a Spring Boot microservice
 
 The source is simply copied from my project https://github.com/jonashackt/spring-boot-vuejs/tree/master/backend
 
@@ -73,25 +73,25 @@ Then inside our Pulumi program [index.ts](deployment/index.ts) we can use everyt
 ```yaml
 import * as awsx from "@pulumi/awsx";
 
-// Create a load balancer to listen for requests and route them to the container.
+  // Create a load balancer to listen for requests and route them to the container.
 let loadbalancer = new awsx.lb.ApplicationListener("alb", { port: 8098, protocol: "HTTP" });
 
-// Define Container image published to the GitHub Container Registry
-let service = new awsx.ecs.FargateService("microservice-api-spring-boot", {
-    taskDefinitionArgs: {
-        containers: {
-          microservice_api_spring_boot: {
-                image: "ghcr.io/jonashackt/microservice-api-spring-boot:latest",
-                memory: 768,
-                portMappings: [ loadbalancer ],
-            },
-        },
+  // Define Container image published to the GitHub Container Registry
+  let service = new awsx.ecs.FargateService("microservice-api-spring-boot", {
+taskDefinitionArgs: {
+  containers: {
+    microservice_api_spring_boot: {
+      image: "ghcr.io/jonashackt/microservice-api-spring-boot:latest",
+      memory: 768,
+      portMappings: [ loadbalancer ],
     },
-    desiredCount: 2,
+  },
+},
+desiredCount: 2,
 });
 
-// Export the URL so we can easily access it.
-export const apiUrl = loadbalancer.endpoint.hostname;
+  // Export the URL so we can easily access it.
+  export const apiUrl = loadbalancer.endpoint.hostname;
 ```
 
 Now running a `pulumi up --stack dev` should launch our ECS Cluster, Security Groups, the Loadbalancer and our Fargate Service (incl. TaskDefinition etc.). This is a whole bunch of services, I prepared an Asciinema for this also:
@@ -107,7 +107,7 @@ The problem is, we didn't define any healthchecks inside our Fargate Taskdefinit
 
 Even the documentation at https://www.pulumi.com/docs/reference/pkg/nodejs/pulumi/awsx/lb/ doesn't have an out-of-the-box example, although there are detailed docs about [Manually Configuring Target Groups](https://www.pulumi.com/docs/guides/crosswalk/aws/elb/#manually-configuring-target-groups).
 
-We need to extend our Pulumi program slightly here because of the need to define the health check URL for our Fargate TaskDefinitions:
+We need to extend our Pulumi program slightly here because of the need to define the health check URL for our Fargate TaskDefinitions (see https://stackoverflow.com/questions/67405335/pulumi-aws-ecs-fargate-tasks-caught-in-restart-loop-how-to-configure-loadbala):
 
 ```typescript
 // Spring Boot Apps port
@@ -148,7 +148,7 @@ const service = new awsx.ecs.FargateService("microservice-api-spring-boot", {
 
 First we need to explicitely create an ApplicationLoadBalancer using `const alb = new awsx.lb.ApplicationLoadBalancer("fargateAlb");`. From the `alb` variable we're able to call `alb.createTargetGroup()`, where we can configure a health check path (see this for more info https://www.pulumi.com/docs/guides/crosswalk/aws/elb/#manually-configuring-target-groups)!
 
-After having created the `ApplicationTargetGroup` we need to create an `ApplicationListener`, which we previously only needed to create in our hello world example. The `FargateService` stays the same - except of explicitely using the `ApplicationListener` inside the `portMappings` defintion. 
+After having created the `ApplicationTargetGroup` we need to create an `ApplicationListener`, which we previously only needed to create in our hello world example. The `FargateService` stays the same - except of explicitely using the `ApplicationListener` inside the `portMappings` defintion.
 
 Now our Fargate Tasks stop beeing stopped and created over and over again. And inside our TargetGroup we should see our healthy Fargate Containers:
 
@@ -225,4 +225,12 @@ Let's add a job `deploy-to-aws-fargate` to our GitHub Actions workflow [build-pu
 
 ```
 
-We use the possibility [to define the environment variables on the workflow's top level](https://docs.github.com/en/actions/reference/environment-variables) to reduce the 3 definition to one. 
+We use the possibility [to define the environment variables on the workflow's top level](https://docs.github.com/en/actions/reference/environment-variables) to reduce the 3 definition to one.
+
+After checking out our repo, we setup a node environment for Pulumi and also create a cache for all those npm modules. We then install the Pulumi TypeScript programs dependencies and also the Pulumi CLI using the great [pulumi/action-install-pulumi-cli](https://github.com/pulumi/action-install-pulumi-cli).
+
+Finally we create our Fargate Cluster and ApplicationLoadbalancers using Pulumi. Also we don't miss to create a GitHub Environment with a dynamic URL based on our Pulumi Fargate deployment.
+
+This makes for a really nice GitHub Actions workflow in the UI:
+
+![github-actions-fullworkflow](screenshots/github-actions-fullworkflow.png)
