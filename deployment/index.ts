@@ -1,4 +1,5 @@
 import * as awsx from "@pulumi/awsx";
+import * as pulumi from "@pulumi/pulumi";
 
 // Spring Boot Apps port
 const port = 8098;
@@ -36,4 +37,6 @@ const service = new awsx.ecs.FargateService("microservice-api-spring-boot", {
 });
 
 // Export the URL so we can easily access it.
-export const apiUrl = albListener.endpoint.hostname;
+// Since Pulumi uses Input and Output as a kind of Promise, we can't directly access the URL as a String
+// see https://www.pulumi.com/docs/intro/concepts/inputs-outputs/#outputs-and-strings
+export const apiUrl = pulumi.concat("http://", albListener.endpoint.hostname, ":", port)
