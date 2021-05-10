@@ -1,5 +1,7 @@
 # microservice-api-spring-boot
 [![Build Status](https://github.com/jonashackt/microservice-api-spring-boot/workflows/build-publish-deploy/badge.svg)](https://github.com/jonashackt/microservice-api-spring-boot/actions)
+[![renovateenabled](https://img.shields.io/badge/renovate-enabled-yellow)](https://renovatebot.com)
+[![versionspringboot](https://img.shields.io/badge/dynamic/xml?color=brightgreen&url=https://raw.githubusercontent.com/jonashackt/microservice-api-spring-boot/master/pom.xml&query=%2F%2A%5Blocal-name%28%29%3D%27project%27%5D%2F%2A%5Blocal-name%28%29%3D%27parent%27%5D%2F%2A%5Blocal-name%28%29%3D%27version%27%5D&label=springboot)](https://github.com/spring-projects/spring-boot)
 
 Example project showing how to interact with a Nuxt.js / Vue.js based frontend building a Spring Boot microservice 
 
