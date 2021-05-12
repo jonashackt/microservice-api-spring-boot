@@ -236,3 +236,31 @@ Finally we create our Fargate Cluster and ApplicationLoadbalancers using Pulumi.
 This makes for a really nice GitHub Actions workflow in the UI:
 
 ![github-actions-fullworkflow](screenshots/github-actions-fullworkflow.png)
+
+
+#### How to force Pulumi to deploy always the newest 'latest' Container image?
+
+If we only use `ghcr.io/jonashackt/microservice-api-spring-boot:latest` inside our `awsx.ecs.FargateService` definition, Pulumi doesn't see any changes and thus doesn't deploy new versions of the same Container image tag anymore.
+
+But there's a `--force-new-deployment` in the AWS CLI (see https://stackoverflow.com/a/48572274/4964553) - and also a boolean parameter `forceNewDeployment` inside the `aws.ecs.Service` (https://www.pulumi.com/docs/reference/pkg/aws/ecs/service/), which our `awsx.ecs.FargateService` inherits from:
+
+> Enable to force a new task deployment of the service. This can be used to update tasks to use a newer Docker image with same image/tag combination (e.g. myimage:latest)
+
+So let's use it inside our [deployment/index.ts](deployment/index.ts):
+
+```javascript
+// Define Container image published to the GitHub Container Registry
+const service = new awsx.ecs.FargateService("microservice-api-spring-boot", {
+    taskDefinitionArgs: {
+        containers: {
+            microservice_api_spring_boot: {
+                image: "ghcr.io/jonashackt/microservice-api-spring-boot:latest",
+                memory: 768,
+                portMappings: [ albListener ]
+            },
+        },
+    },
+    desiredCount: 2,
+    forceNewDeployment: true
+});
+```
