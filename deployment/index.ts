@@ -34,6 +34,7 @@ const service = new awsx.ecs.FargateService("microservice-api-spring-boot", {
         },
     },
     desiredCount: 2,
+    forceNewDeployment: true
 });
 
 // Export the URL so we can easily access it.

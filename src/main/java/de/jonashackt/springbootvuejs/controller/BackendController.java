@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 @Controller
 @RequestMapping("/api")
+@CrossOrigin()
 public class BackendController {
 
     private static final Logger LOG = LoggerFactory.getLogger(BackendController.class);
@@ -35,7 +36,7 @@ public class BackendController {
     public long addNewUser (@PathVariable("lastName") String lastName, @PathVariable("firstName") String firstName) {
         User savedUser = userRepository.save(new User(firstName, lastName));
 
-        LOG.info(savedUser.toString() + " successfully saved into DB");
+        LOG.info(savedUser + " successfully saved into DB");
 
         return savedUser.getId();
     }

@@ -3,9 +3,78 @@
 [![renovateenabled](https://img.shields.io/badge/renovate-enabled-yellow)](https://renovatebot.com)
 [![versionspringboot](https://img.shields.io/badge/dynamic/xml?color=brightgreen&url=https://raw.githubusercontent.com/jonashackt/microservice-api-spring-boot/master/pom.xml&query=%2F%2A%5Blocal-name%28%29%3D%27project%27%5D%2F%2A%5Blocal-name%28%29%3D%27parent%27%5D%2F%2A%5Blocal-name%28%29%3D%27version%27%5D&label=springboot)](https://github.com/spring-projects/spring-boot)
 
-Example project showing how to interact with a Nuxt.js / Vue.js based frontend building a Spring Boot microservice
+Example project showing how to interact with a Nuxt.js / Vue.js based frontend (https://github.com/jonashackt/microservice-ui-nuxt-js) building a Spring Boot microservice
+```shell
+┌────────────────────────────────┐
+│                                │
+│                                │
+│    microservice-ui-nuxt-js     │
+│                                │
+│                                │
+└───────────────┬────────────────┘
+                │
+                │
+┌───────────────▼────────────────┐
+│                                │
+│                                │
+│  microservice-api-spring-boot  │
+│                                │
+│                                │
+└────────────────────────────────┘
+```
 
-The source is simply copied from my project https://github.com/jonashackt/spring-boot-vuejs/tree/master/backend
+Most of the source is simply copied from my project https://github.com/jonashackt/spring-boot-vuejs/tree/master/backend
+
+
+## Acting as API backend for Nuxt.js frontend
+
+We have a slightly different deployment than the single one in https://github.com/jonashackt/spring-boot-vuejs here, where we deployed everything (including the frontend) into a Spring Boot embedded Tomcat.
+
+Now we deploy the frontend separately from the backend - which also has some implications on the backend, since it only acts as the API now.
+
+
+#### Combine CORS & Spring Security
+
+Therefore we can remove the [SpaRedirectFilterConfiguration.java](https://github.com/jonashackt/spring-boot-vuejs/blob/master/backend/src/main/java/de/jonashackt/springbootvuejs/configuration/SpaRedirectFilterConfiguration.java) and need to add a `org.springframework.web.bind.annotation.CrossOrigin` Annotation with `@CrossOrigin` to our [BackendController.java](src/main/java/de/jonashackt/springbootvuejs/controller/BackendController.java):
+
+```java
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.RequestMapping;
+
+@Controller
+@RequestMapping("/api")
+@CrossOrigin
+public class BackendController {
+    ...
+}
+```
+
+https://stackoverflow.com/a/37610988/4964553 states:
+
+> To make it work, you need to explicitly enable CORS support at Spring Security level as following, otherwise CORS enabled requests may be blocked by Spring Security before reaching Spring MVC.
+
+So we need to mind the Spring Security integration! Using the `@CrossOrigin` annotation, we can simply add `and().cors()` to our [WebSecurityConfiguration.java](src/main/java/de/jonashackt/springbootvuejs/configuration/WebSecurityConfiguration.java):
+
+```java
+    http
+            .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS) // No session will be created or used by spring security
+        .and()
+            .httpBasic()
+        .and()
+            .authorizeRequests()
+                .antMatchers("/api/hello").permitAll()
+                .antMatchers("/api/user/**").permitAll() // allow every URI, that begins with '/api/user/'
+                .antMatchers("/api/secured").authenticated()
+                //.anyRequest().authenticated() // protect all other requests
+        .and()
+            .cors() // We need to add CORS support to Spring Security (see https://stackoverflow.com/a/37610988/4964553)
+        .and()
+            .csrf().disable(); // disable cross site request forgery, as we don't use cookies - otherwise ALL PUT, POST, DELETE will get HTTP 403!
+```
+
+See https://stackoverflow.com/a/67583232/4964553 for a full explanation.
+
 
 ## GitHub Actions: Build, create Container Image with Paketo.io & Publish to GitHub Container Registry
 
@@ -236,3 +305,31 @@ Finally we create our Fargate Cluster and ApplicationLoadbalancers using Pulumi.
 This makes for a really nice GitHub Actions workflow in the UI:
 
 ![github-actions-fullworkflow](screenshots/github-actions-fullworkflow.png)
+
+
+#### How to force Pulumi to deploy always the newest 'latest' Container image?
+
+If we only use `ghcr.io/jonashackt/microservice-api-spring-boot:latest` inside our `awsx.ecs.FargateService` definition, Pulumi doesn't see any changes and thus doesn't deploy new versions of the same Container image tag anymore.
+
+But there's a `--force-new-deployment` in the AWS CLI (see https://stackoverflow.com/a/48572274/4964553) - and also a boolean parameter `forceNewDeployment` inside the `aws.ecs.Service` (https://www.pulumi.com/docs/reference/pkg/aws/ecs/service/), which our `awsx.ecs.FargateService` inherits from:
+
+> Enable to force a new task deployment of the service. This can be used to update tasks to use a newer Docker image with same image/tag combination (e.g. myimage:latest)
+
+So let's use it inside our [deployment/index.ts](deployment/index.ts):
+
+```javascript
+// Define Container image published to the GitHub Container Registry
+const service = new awsx.ecs.FargateService("microservice-api-spring-boot", {
+    taskDefinitionArgs: {
+        containers: {
+            microservice_api_spring_boot: {
+                image: "ghcr.io/jonashackt/microservice-api-spring-boot:latest",
+                memory: 768,
+                portMappings: [ albListener ]
+            },
+        },
+    },
+    desiredCount: 2,
+    forceNewDeployment: true
+});
+```
