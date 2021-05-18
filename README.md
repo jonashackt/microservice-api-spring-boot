@@ -4,7 +4,7 @@
 [![versionspringboot](https://img.shields.io/badge/dynamic/xml?color=brightgreen&url=https://raw.githubusercontent.com/jonashackt/microservice-api-spring-boot/master/pom.xml&query=%2F%2A%5Blocal-name%28%29%3D%27project%27%5D%2F%2A%5Blocal-name%28%29%3D%27parent%27%5D%2F%2A%5Blocal-name%28%29%3D%27version%27%5D&label=springboot)](https://github.com/spring-projects/spring-boot)
 
 Example project showing how to interact with a Nuxt.js / Vue.js based frontend (https://github.com/jonashackt/microservice-ui-nuxt-js) building a Spring Boot microservice
-
+```shell
 ┌────────────────────────────────┐
 │                                │
 │                                │
@@ -14,9 +14,6 @@ Example project showing how to interact with a Nuxt.js / Vue.js based frontend (
 └───────────────┬────────────────┘
                 │
                 │
-                │
-                │
-                │
 ┌───────────────▼────────────────┐
 │                                │
 │                                │
@@ -24,6 +21,7 @@ Example project showing how to interact with a Nuxt.js / Vue.js based frontend (
 │                                │
 │                                │
 └────────────────────────────────┘
+```
 
 Most of the source is simply copied from my project https://github.com/jonashackt/spring-boot-vuejs/tree/master/backend
 
@@ -34,23 +32,48 @@ We have a slightly different deployment than the single one in https://github.co
 
 Now we deploy the frontend separately from the backend - which also has some implications on the backend, since it only acts as the API now.
 
-Therefore we can remove the [SpaRedirectFilterConfiguration.java](https://github.com/jonashackt/spring-boot-vuejs/blob/master/backend/src/main/java/de/jonashackt/springbootvuejs/configuration/SpaRedirectFilterConfiguration.java) and need to add a `org.springframework.web.servlet.config.annotation.WebMvcConfigurer` as global CORS configuration to our Spring Boot Application class:
+
+#### Combine CORS & Spring Security
+
+Therefore we can remove the [SpaRedirectFilterConfiguration.java](https://github.com/jonashackt/spring-boot-vuejs/blob/master/backend/src/main/java/de/jonashackt/springbootvuejs/configuration/SpaRedirectFilterConfiguration.java) and need to add a `org.springframework.web.bind.annotation.CrossOrigin` Annotation with `@CrossOrigin` to our [BackendController.java](src/main/java/de/jonashackt/springbootvuejs/controller/BackendController.java):
 
 ```java
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.RequestMapping;
 
-	// Enable CORS globally
-	@Bean
-	public WebMvcConfigurer corsConfigurer() {
-		return new WebMvcConfigurer() {
-			@Override
-			public void addCorsMappings(CorsRegistry registry) {
-				registry.addMapping("/api/*").allowedOrigins("*");
-			}
-		};
-	}
+@Controller
+@RequestMapping("/api")
+@CrossOrigin
+public class BackendController {
+    ...
+}
 ```
 
-See also this guide for more details: https://spring.io/guides/gs/rest-service-cors/.
+https://stackoverflow.com/a/37610988/4964553 states:
+
+> To make it work, you need to explicitly enable CORS support at Spring Security level as following, otherwise CORS enabled requests may be blocked by Spring Security before reaching Spring MVC.
+
+So we need to mind the Spring Security integration! Using the `@CrossOrigin` annotation, we can simply add `and().cors()` to our [WebSecurityConfiguration.java](src/main/java/de/jonashackt/springbootvuejs/configuration/WebSecurityConfiguration.java):
+
+```java
+    http
+            .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS) // No session will be created or used by spring security
+        .and()
+            .httpBasic()
+        .and()
+            .authorizeRequests()
+                .antMatchers("/api/hello").permitAll()
+                .antMatchers("/api/user/**").permitAll() // allow every URI, that begins with '/api/user/'
+                .antMatchers("/api/secured").authenticated()
+                //.anyRequest().authenticated() // protect all other requests
+        .and()
+            .cors() // We need to add CORS support to Spring Security (see https://stackoverflow.com/a/37610988/4964553)
+        .and()
+            .csrf().disable(); // disable cross site request forgery, as we don't use cookies - otherwise ALL PUT, POST, DELETE will get HTTP 403!
+```
+
+See https://stackoverflow.com/a/67583232/4964553 for a full explanation.
 
 
 ## GitHub Actions: Build, create Container Image with Paketo.io & Publish to GitHub Container Registry

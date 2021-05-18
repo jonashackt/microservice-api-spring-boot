@@ -13,15 +13,4 @@ public class SpringBootVuejsApplication {
 		SpringApplication.run(SpringBootVuejsApplication.class, args);
 	}
 
-	// Enable CORS globally
-	@Bean
-	public WebMvcConfigurer corsConfigurer() {
-		return new WebMvcConfigurer() {
-			@Override
-			public void addCorsMappings(CorsRegistry registry) {
-				registry.addMapping("/api/*").allowedOrigins("*");
-			}
-		};
-	}
-
 }
