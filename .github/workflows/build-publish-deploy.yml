@@ -80,7 +80,7 @@ jobs:
         working-directory: ./deployment
 
       - name: Install Pulumi CLI
-        uses: pulumi/action-install-pulumi-cli@v1.0.2
+        uses: pulumi/action-install-pulumi-cli@v1.1.0
 
       - name: Deploy Spring Boot App Container image to AWS Fargate with Pulumi
         id: pulumi-up
