@@ -1,4 +1,4 @@
-name: undeploy-manual
+name: deploy-manual
 
 on: workflow_dispatch
 

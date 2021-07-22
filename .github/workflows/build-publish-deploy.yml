@@ -124,7 +124,7 @@ jobs:
       - name: Install Pulumi CLI
         uses: pulumi/action-install-pulumi-cli@v2.0.0
 
-      - name: Deploy Spring Boot App Container image to AWS Fargate with Pulumi
+      - name: Undeploy Spring Boot App Container image to AWS Fargate with Pulumi
         id: pulumi-up
         run: |
           pulumi stack select dev
