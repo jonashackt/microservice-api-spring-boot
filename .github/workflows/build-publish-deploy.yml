@@ -38,7 +38,7 @@ jobs:
       # BP_JVM_VERSION 16, because we use Java 16 inside our Maven build but Paketo defaults to 11
       - name: Build app with pack CLI & publish to bc Container Registry
         run: |
-          docker run --rm -it -v "$PWD":/usr/src/app -w /usr/src/app paketobuildpacks/builder \
+          docker run --rm -v "$PWD":/usr/src/app -w /usr/src/app paketobuildpacks/builder \
             /cnb/lifecycle/creator \
             -app=. \
             -cache-image=ghcr.io/jonashackt/microservice-api-spring-boot-paketo-cache-image:latest \
