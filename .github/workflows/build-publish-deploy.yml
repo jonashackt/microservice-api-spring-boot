@@ -8,11 +8,11 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Set up JDK 16
+      - name: Set up JDK 17
         uses: actions/setup-java@v2
         with:
-          distribution: 'adopt'
-          java-version: 16
+          distribution: 'temurin'
+          java-version: 17
 
       - name: Build with Maven
         run: mvn package --batch-mode --no-transfer-progress
@@ -43,7 +43,7 @@ jobs:
               --builder paketobuildpacks/builder:base \
               --path . \
               --env "BP_OCI_SOURCE=https://github.com/jonashackt/microservice-api-spring-boot" \
-              --env "BP_JVM_VERSION=16" \
+              --env "BP_JVM_VERSION=17" \
               --cache-image ghcr.io/jonashackt/microservice-api-spring-boot-paketo-cache-image:latest \
               --publish
 
