@@ -43,7 +43,7 @@ jobs:
               --builder paketobuildpacks/builder:base \
               --path . \
               --env "BP_OCI_SOURCE=https://github.com/jonashackt/microservice-api-spring-boot" \
-              --env "BP_JVM_VERSION=16" \
+              --env "BP_JVM_VERSION=17" \
               --cache-image ghcr.io/jonashackt/microservice-api-spring-boot-paketo-cache-image:latest \
               --publish
 
