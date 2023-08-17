@@ -63,7 +63,7 @@ jobs:
         uses: actions/checkout@master
 
       - name: Setup node env
-        uses: actions/setup-node@v2.5.2
+        uses: actions/setup-node@v3.8.1
         with:
           node-version: '14'
 
@@ -105,7 +105,7 @@ jobs:
         uses: actions/checkout@master
 
       - name: Setup node env
-        uses: actions/setup-node@v2.5.2
+        uses: actions/setup-node@v3.8.1
         with:
           node-version: '14'
 
