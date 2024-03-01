@@ -1,5 +1,5 @@
 # microservice-api-spring-boot
-[![Build Status](https://github.com/jonashackt/microservice-api-spring-boot/workflows/build-publish-deploy/badge.svg)](https://github.com/jonashackt/microservice-api-spring-boot/actions)
+[![Build Status](https://github.com/jonashackt/microservice-api-spring-boot/workflows/build-publish/badge.svg)](https://github.com/jonashackt/microservice-api-spring-boot/actions)
 [![renovateenabled](https://img.shields.io/badge/renovate-enabled-yellow)](https://renovatebot.com)
 [![versionspringboot](https://img.shields.io/badge/dynamic/xml?color=brightgreen&url=https://raw.githubusercontent.com/jonashackt/microservice-api-spring-boot/master/pom.xml&query=%2F%2A%5Blocal-name%28%29%3D%27project%27%5D%2F%2A%5Blocal-name%28%29%3D%27parent%27%5D%2F%2A%5Blocal-name%28%29%3D%27version%27%5D&label=springboot)](https://github.com/spring-projects/spring-boot)
 
@@ -78,10 +78,10 @@ See https://stackoverflow.com/a/67583232/4964553 for a full explanation.
 
 ## GitHub Actions: Build, create Container Image with Paketo.io & Publish to GitHub Container Registry
 
-Our [build-publish-deploy.yml](.github/workflows/build-publish-deploy.yml) already builds our Java/Spring Boot app using JDK 16. It also uses Paketo.io / Cloud Native Buildpacks to create a Container image (incl. a Paketo cache image to speed up builds, see https://stackoverflow.com/a/66598693/4964553) and publish it to GitHub Container Registry:
+Our [build-publish.yml](.github/workflows/build-publish.yml) already builds our Java/Spring Boot app using JDK 16. It also uses Paketo.io / Cloud Native Buildpacks to create a Container image (incl. a Paketo cache image to speed up builds, see https://stackoverflow.com/a/66598693/4964553) and publish it to GitHub Container Registry:
 
 ```yaml
-name: build-publish-deploy
+name: build-publish
 
 on: [push]
 
@@ -122,10 +122,10 @@ jobs:
       - name: Build app with pack CLI & publish to bc Container Registry
         run: |
           pack build ghcr.io/jonashackt/microservice-api-spring-boot:latest \
-              --builder paketobuildpacks/builder:base \
+              --builder paketobuildpacks/builder-jammy-base \
               --path . \
               --env "BP_OCI_SOURCE=https://github.com/jonashackt/microservice-api-spring-boot" \
-              --env "BP_JVM_VERSION=16" \
+              --env "BP_JVM_VERSION=21" \
               --cache-image ghcr.io/jonashackt/microservice-api-spring-boot-paketo-cache-image:latest \
               --publish
 ```

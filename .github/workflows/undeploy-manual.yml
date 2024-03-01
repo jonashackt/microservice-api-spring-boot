@@ -1,4 +1,4 @@
-name: deploy-manual
+name: undeploy-manual
 
 on: workflow_dispatch
 
@@ -37,8 +37,6 @@ jobs:
         id: pulumi-up
         run: |
           pulumi stack select dev
-          pulumi preview
-          pulumi up -y
-          echo "::set-output name=api_url::$(pulumi stack output apiUrl)/api/hello"
+          pulumi destroy -y
         working-directory: ./deployment
 
