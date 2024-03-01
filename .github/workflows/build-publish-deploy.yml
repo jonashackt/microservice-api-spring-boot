@@ -40,7 +40,7 @@ jobs:
       - name: Build app with pack CLI & publish to bc Container Registry
         run: |
           pack build ghcr.io/jonashackt/microservice-api-spring-boot:latest \
-              --builder paketobuildpacks/builder:base \
+              --builder paketobuildpacks/builder-jammy-base \
               --path . \
               --env "BP_OCI_SOURCE=https://github.com/jonashackt/microservice-api-spring-boot" \
               --env "BP_JVM_VERSION=21" \
