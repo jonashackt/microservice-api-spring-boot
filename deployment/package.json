@@ -1,7 +1,7 @@
 {
     "name": "microservice-ui-nuxt-js-deployment",
     "devDependencies": {
-        "@types/node": "20.17.23"
+        "@types/node": "20.17.24"
     },
     "dependencies": {
         "@pulumi/aws": "6.70.1",
