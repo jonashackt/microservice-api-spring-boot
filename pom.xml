@@ -17,7 +17,7 @@
 		<java.version>21</java.version>
 
 		<!-- backend dependencies -->
-		<rest-assured.version>5.5.7</rest-assured.version>
+		<rest-assured.version>6.0.0</rest-assured.version>
 	</properties>
 
 	<dependencies>
